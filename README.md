@@ -88,6 +88,10 @@ http://localhost:8080/callback
    - **飞书应用密钥** (App Secret)
 3. 点击"保存配置"按钮
 
+> 📁 **配置文件位置**: 飞书相关配置会保存在 `Assets/Settings/` 文件夹中
+> - `FeiShuConfig.asset` - 应用配置和同步任务配置
+> - `FeiShuUserToken.asset` - 用户访问令牌（**不应被版本控制同步**）
+
 ### 7. 授权登录
 
 1. 点击"重新授权"按钮
@@ -208,6 +212,34 @@ Assets/Resources/GameData/
 | bitable | xlsx, csv | 飞书多维表格 |
 
 ## 🔧 高级配置
+
+### 配置文件管理
+
+#### 配置文件说明
+
+插件会在 `Assets/Settings/` 文件夹中创建以下配置文件：
+
+- **`FeiShuConfig.asset`**: 包含应用配置和同步任务配置
+  - 飞书应用ID和密钥
+  - 同步任务列表
+  - 权限范围设置
+  - ✅ **可以安全地提交到版本控制**
+
+- **`FeiShuUserToken.asset`**: 包含用户访问令牌
+  - 访问令牌 (Access Token)
+  - 刷新令牌 (Refresh Token)
+  - 令牌过期时间
+  - ⚠️ **不应提交到版本控制**（包含敏感信息）
+
+#### 版本控制建议
+
+建议在 `.gitignore` 文件中添加以下规则：
+
+```
+# 飞书用户令牌文件（包含敏感信息）
+Assets/Settings/FeiShuUserToken.asset
+Assets/Settings/FeiShuUserToken.asset.meta
+```
 
 ### 自定义保存路径
 
