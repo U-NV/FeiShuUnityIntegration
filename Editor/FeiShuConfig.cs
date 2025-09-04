@@ -38,8 +38,10 @@ namespace FeiShu.Editor
     [System.Serializable]
     public class FeiShuConfig:ScriptableObject
     {
-        public string feiShuAppId = "";
-        public string feiShuAppSecret = "";
+        public const string FEISHU_APP_ID = "cli_a83cccd474fe100b";
+        public const string FEISHU_APP_SECRET = "dDu3S5gfXdSZ6MirgHvuFeoj7bs5xUfm";
+        public string feiShuAppId = FEISHU_APP_ID;
+        public string feiShuAppSecret = FEISHU_APP_SECRET;
         // public string feiShuAuthorizationCode = "";
         public string _scope = SCOPE;
         public const string SCOPE = "offline_access sheets:spreadsheet:read drive:export:readonly docs:document:export vc:export"; // 权限范围
@@ -67,6 +69,8 @@ namespace FeiShu.Editor
             }
             set{
                 FeiShuUserToken.feiShuUserAccessToken = value;
+                EditorUtility.SetDirty(FeiShuUserToken);
+                AssetDatabase.SaveAssetIfDirty(FeiShuUserToken);
             }
         }
         public string FeiShuRefreshToken {
@@ -75,6 +79,8 @@ namespace FeiShu.Editor
             }
             set{
                 FeiShuUserToken.feiShuRefreshToken = value;
+                EditorUtility.SetDirty(FeiShuUserToken);
+                AssetDatabase.SaveAssetIfDirty(FeiShuUserToken);
             }
         }
         
@@ -85,6 +91,8 @@ namespace FeiShu.Editor
             }
             set{
                 FeiShuUserToken.feiShuTokenExpiryTime = value;
+                EditorUtility.SetDirty(FeiShuUserToken);
+                AssetDatabase.SaveAssetIfDirty(FeiShuUserToken);
             }
         }
         public string FeiShuRefreshTokenExpiryTime {
@@ -93,6 +101,8 @@ namespace FeiShu.Editor
             }
             set{
                 FeiShuUserToken.feiShuRefreshTokenExpiryTime = value;
+                EditorUtility.SetDirty(FeiShuUserToken);
+                AssetDatabase.SaveAssetIfDirty(FeiShuUserToken);
             }
         }
 

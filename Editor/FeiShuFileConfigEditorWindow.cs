@@ -95,8 +95,20 @@ namespace FeiShu.Editor
                 EditorGUILayout.LabelField("飞书配置：");
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                 {
+                    EditorGUILayout.BeginHorizontal();
                     _config.feiShuAppId = EditorGUILayout.TextField("飞书AppId:", _config.feiShuAppId);
+                    if (GUILayout.Button("复原",GUILayout.Width(50))){
+                        _config.feiShuAppId = FeiShuConfig.FEISHU_APP_ID;
+                    }
+                    EditorGUILayout.EndHorizontal();
+
+                    EditorGUILayout.BeginHorizontal();
                     _config.feiShuAppSecret = EditorGUILayout.TextField("飞书AppSecret:", _config.feiShuAppSecret);
+                    if (GUILayout.Button("复原",GUILayout.Width(50))){
+                        _config.feiShuAppSecret = FeiShuConfig.FEISHU_APP_SECRET;
+                    }
+                    EditorGUILayout.EndHorizontal();
+
                     _config._scope = EditorGUILayout.TextField("权限范围:", _config._scope);
                 }
                 EditorGUILayout.EndVertical();
