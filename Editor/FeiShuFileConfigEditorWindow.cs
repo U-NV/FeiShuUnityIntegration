@@ -67,8 +67,8 @@ namespace FeiShu.Editor
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             {
-                generateConfig.file_extension = (FeiShuFileSyncConfig.ExtensionType)EditorGUILayout.EnumPopup("文件类型:", generateConfig.file_extension);
-                generateConfig.type = (FeiShuFileSyncConfig.ExportType)EditorGUILayout.EnumPopup("导出类型:", generateConfig.type);
+                generateConfig.file_extension = (FeiShuFileSyncConfig.ExtensionType)EditorGUILayout.EnumPopup("文件扩展名:", generateConfig.file_extension);
+                generateConfig.type = (FeiShuFileSyncConfig.ExportType)EditorGUILayout.EnumPopup("云文档类型:", generateConfig.type);
 
                 generateConfig.token = EditorGUILayout.TextField("token:", generateConfig.token);
                 if (generateConfig.type == FeiShuFileSyncConfig.ExportType.sheet || generateConfig.type == FeiShuFileSyncConfig.ExportType.bitable)

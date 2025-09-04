@@ -150,7 +150,6 @@ namespace FeiShu.Editor
         }
         public enum ExportType
         {
-            doc,
             sheet,
             bitable,
             docx
