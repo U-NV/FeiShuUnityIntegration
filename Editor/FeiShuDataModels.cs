@@ -152,4 +152,62 @@ namespace FeiShu.Editor
         public string email;
         public string user_id;
     }
+
+    // 分片上传相关的数据模型
+    [System.Serializable]
+    public class UploadPrepareRequest
+    {
+        public string file_name;
+        public string parent_node;
+        public string parent_type;
+        public int size;
+    }
+
+    [System.Serializable]
+    public class UploadPrepareResponse
+    {
+        public int code;
+        public string msg;
+        public UploadPrepareData data;
+        public bool success => code == 0;
+    }
+
+    [System.Serializable]
+    public class UploadPrepareData
+    {
+        public string upload_id;
+        public int block_size;
+        public int block_num;
+    }
+
+
+    [System.Serializable]
+    public class UploadPartResponse
+    {
+        public int code;
+        public string msg;
+        public bool success => code == 0;
+    }
+
+    [System.Serializable]
+    public class UploadFinishRequest
+    {
+        public string upload_id;
+        public int block_num;
+    }
+
+    [System.Serializable]
+    public class UploadFinishResponse
+    {
+        public int code;
+        public string msg;
+        public UploadFinishData data;
+        public bool success => code == 0;
+    }
+
+    [System.Serializable]
+    public class UploadFinishData
+    {
+        public string file_token;
+    }
 }

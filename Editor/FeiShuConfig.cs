@@ -44,7 +44,7 @@ namespace FeiShu.Editor
         public string feiShuAppSecret = FEISHU_APP_SECRET;
         // public string feiShuAuthorizationCode = "";
         public string _scope = SCOPE;
-        public const string SCOPE = "offline_access sheets:spreadsheet:read drive:export:readonly docs:document:export vc:export"; // 权限范围
+        public const string SCOPE = "offline_access sheets:spreadsheet:read drive:export:readonly docs:document:export vc:export drive:drive drive:file drive:file:upload"; // 权限范围
         public string Scope{
             get{
                 if(string.IsNullOrEmpty(_scope)){
@@ -107,6 +107,7 @@ namespace FeiShu.Editor
         }
 
         public List<FeiShuFileSyncConfig> fileSyncConfigs = new List<FeiShuFileSyncConfig>();
+        public List<FeiShuFileUploadConfig> fileUploadConfigs = new List<FeiShuFileUploadConfig>();
         public static string FeiShuConfigAssetPath = "Assets/Settings/FeiShuConfig.asset";
         public static FeiShuConfig GetOrCreateConfig()
         {
@@ -130,6 +131,13 @@ namespace FeiShu.Editor
             return config;
         }
     }
+    [System.Serializable]
+    public class FeiShuFileUploadConfig
+    {
+        public string localFilePath;
+        public string parent_node;
+    }
+
     [System.Serializable]
     public class FeiShuFileSyncConfig
     {

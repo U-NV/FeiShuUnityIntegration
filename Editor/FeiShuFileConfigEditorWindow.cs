@@ -90,37 +90,7 @@ namespace FeiShu.Editor
         {
             _scrollPos = EditorGUILayout.BeginScrollView(_scrollPos);
 
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            {
-                EditorGUILayout.LabelField("飞书配置：");
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                {
-                    EditorGUILayout.BeginHorizontal();
-                    _config.feiShuAppId = EditorGUILayout.TextField("飞书AppId:", _config.feiShuAppId);
-                    if (GUILayout.Button("复原",GUILayout.Width(50))){
-                        _config.feiShuAppId = FeiShuConfig.FEISHU_APP_ID;
-                    }
-                    EditorGUILayout.EndHorizontal();
-
-                    EditorGUILayout.BeginHorizontal();
-                    _config.feiShuAppSecret = EditorGUILayout.TextField("飞书AppSecret:", _config.feiShuAppSecret);
-                    if (GUILayout.Button("复原",GUILayout.Width(50))){
-                        _config.feiShuAppSecret = FeiShuConfig.FEISHU_APP_SECRET;
-                    }
-                    EditorGUILayout.EndHorizontal();
-
-                    EditorGUILayout.BeginHorizontal();
-                    _config._scope = EditorGUILayout.TextField("权限范围:", _config._scope);
-                    if (GUILayout.Button("复原",GUILayout.Width(50))){
-                        _config._scope = FeiShuConfig.SCOPE;
-                    }
-                    EditorGUILayout.EndHorizontal();
-                }
-                EditorGUILayout.EndVertical();
-            }
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.LabelField("当前所有配置文件：");
+            EditorGUILayout.LabelField("当前所有下载配置文件：");
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             
             var configList = _config.fileSyncConfigs;
