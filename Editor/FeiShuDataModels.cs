@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace FeiShu.Editor
+namespace U0UGames.FeiShu.Editor
 {
     /// <summary>
     /// 飞书API相关的数据模型

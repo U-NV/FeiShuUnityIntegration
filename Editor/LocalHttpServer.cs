@@ -4,7 +4,7 @@ using System.Net;
 using System.Threading.Tasks;
 using UnityEditor;
 
-namespace FeiShu.Editor
+namespace U0UGames.FeiShu.Editor
 {
     /// <summary>
     /// 简单的HTTP服务器，用于接收飞书授权回调

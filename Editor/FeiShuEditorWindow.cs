@@ -3,7 +3,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace FeiShu.Editor
+namespace U0UGames.FeiShu.Editor
 {
     public class FeiShuEditorWindow : EditorWindow
     {

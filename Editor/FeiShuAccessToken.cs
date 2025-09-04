@@ -7,7 +7,7 @@ using System.Text;
 using System.Net.Http;
 using System.Security.Cryptography;
 
-namespace FeiShu.Editor
+namespace U0UGames.FeiShu.Editor
 {
     public class FeiShuAccessTokenManager
     {

@@ -10,7 +10,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.IO;
 
-namespace FeiShu.Editor
+namespace U0UGames.FeiShu.Editor
 {
 
      public class FeiShuFileSyncEditorWindow 

@@ -19,16 +19,16 @@
   "author": {
     "name": "U0UGames",
     "email": "support@u0ugames.com",
-    "url": "https://github.com/u0ugames"
+    "url": "haowei1117@foxmail.com"
   },
   "license": "MIT",
-  "homepage": "https://github.com/u0ugames/feishu-file-sync-unity",
+  "homepage": "https://github.com/U-NV/FeiShu-Unity-Integration",
   "repository": {
     "type": "git",
-    "url": "https://github.com/u0ugames/feishu-file-sync-unity.git"
+    "url": "https://github.com/U-NV/FeiShu-Unity-Integration.git"
   },
   "bugs": {
-    "url": "https://github.com/u0ugames/feishu-file-sync-unity/issues"
+    "url": "https://github.com/U-NV/FeiShu-Unity-Integration/issues"
   },
   "category": "Editor",
   "dependencies": {},
@@ -39,6 +39,6 @@
       "path": "Samples~/BasicConfiguration"
     }
   ],
-  "changelogUrl": "https://github.com/u0ugames/feishu-file-sync-unity/blob/main/CHANGELOG.md",
-  "documentationUrl": "https://github.com/u0ugames/feishu-file-sync-unity/blob/main/README.md"
+  "changelogUrl": "https://github.com/U-NV/FeiShu-Unity-Integration/blob/main/CHANGELOG.md",
+  "documentationUrl": "https://github.com/U-NV/FeiShu-Unity-Integration/blob/main/README.md"
 }

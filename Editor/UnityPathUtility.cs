@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using UnityEngine;
 
-namespace FeiShu.Editor
+namespace U0UGames.FeiShu.Editor
 {
     public static class UnityPathUtility
     {
