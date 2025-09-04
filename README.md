@@ -2,7 +2,7 @@
 
 [![Unity Version](https://img.shields.io/badge/Unity-2019.4%2B-blue.svg)](https://unity3d.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-orange.svg)](https://github.com/U-NV/FeiShu-Unity-Integration/releases)
+[![Version](https://img.shields.io/badge/Version-1.0.0-orange.svg)](https://github.com/U-NV/FeiShuUnityIntegration/releases)
 
 Unity编辑器插件，用于与飞书API集成，实现云端文件同步到本地。
 
@@ -28,7 +28,7 @@ Unity编辑器插件，用于与飞书API集成，实现云端文件同步到本
 #### 方法一：Package Manager安装（推荐）
 1. 在Unity编辑器中打开 `Window > Package Manager`
 2. 点击左上角的 `+` 按钮，选择 `Add package from git URL`
-3. 输入：`https://github.com/U-NV/FeiShu-Unity-Integration.git`
+3. 输入：`https://github.com/U-NV/FeiShuUnityIntegration.git`
 4. 点击 `Add` 完成安装
 
 #### 方法二：手动安装
@@ -304,7 +304,7 @@ A: 确保飞书应用已申请必要的API权限
 
 ## 📝 更新日志
 
-查看 [CHANGELOG.md](https://github.com/U-NV/FeiShu-Unity-Integration/blob/main/CHANGELOG.md) 了解版本更新详情。
+查看 [CHANGELOG.md](https://github.com/U-NV/FeiShuUnityIntegration/blob/main/CHANGELOG.md) 了解版本更新详情。
 
 ## 🤝 贡献
 
@@ -318,7 +318,7 @@ A: 确保飞书应用已申请必要的API权限
 
 如果您遇到问题或有任何建议，请：
 
-- 提交 [Issue](https://github.com/U-NV/FeiShu-Unity-Integration/issues)
+- 提交 [Issue](https://github.com/U-NV/FeiShuUnityIntegration/issues)
 ## 🙏 致谢
 
 感谢飞书开放平台提供的API支持。
