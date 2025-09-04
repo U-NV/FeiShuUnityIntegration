@@ -1,17 +1,16 @@
-# 飞书文件同步插件 (FeiShu File Sync)
+# 飞书Unity集成插件 (FeiShu Unity Integration)
 
 [![Unity Version](https://img.shields.io/badge/Unity-2019.4%2B-blue.svg)](https://unity3d.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-orange.svg)](https://github.com/u0ugames/feishu-file-sync-unity/releases)
+[![Version](https://img.shields.io/badge/Version-1.0.0-orange.svg)](https://github.com/U-NV/FeiShu-Unity-Integration/releases)
 
-一个强大的Unity编辑器插件，用于与飞书API集成，实现文档、表格等文件的自动同步和导出功能。
+Unity编辑器插件，用于与飞书API集成，实现云端文件同步到本地。
 
 ## ✨ 主要功能
 
 - 🔐 **OAuth2授权** - 安全的飞书账号授权登录
 - 📄 **多格式支持** - 支持Excel (.xlsx)、PDF、Word (.docx)、CSV等格式
 - 🔄 **批量同步** - 支持多个文件的批量导出和同步
-- 📊 **表格数据** - 自动获取飞书表格的sheet信息
 - 💾 **本地保存** - 自动保存导出文件到指定目录
 - 🎯 **进度显示** - 实时显示同步进度和状态
 - ⚙️ **配置管理** - 灵活的配置文件管理
@@ -26,56 +25,179 @@
 
 ### 1. 安装插件
 
-将插件文件夹复制到Unity项目的 `Assets/` 目录下，或通过Package Manager安装。
+#### 方法一：Package Manager安装（推荐）
+1. 在Unity编辑器中打开 `Window > Package Manager`
+2. 点击左上角的 `+` 按钮，选择 `Add package from git URL`
+3. 输入：`https://github.com/U-NV/FeiShu-Unity-Integration.git`
+4. 点击 `Add` 完成安装
 
-### 2. 配置飞书应用
+#### 方法二：手动安装
+1. 下载最新版本的插件包
+2. 解压到Unity项目的 `Assets/` 目录下
+3. 重新打开Unity编辑器
+
+> ⚠️ **注意**: 确保Unity版本为2019.4或更高版本
+
+### 2. 创建飞书应用
+
+在开始使用前，您需要在飞书开放平台创建一个应用：
+
+1. 访问 [飞书开放平台](https://open.feishu.cn/)
+2. 登录您的飞书账号
+3. 点击"创建应用" > "自建应用"
+4. 填写应用基本信息：
+   - **应用名称**: 例如 "Unity文档同步工具"
+   - **应用描述**: 描述您的使用场景
+   - **应用图标**: 上传一个图标（可选）
+
+### 3. 配置应用权限
+
+在应用管理页面，配置以下权限：
+
+```
+基础权限：
+- offline_access (离线访问)
+
+文档权限：
+- sheets:spreadsheet:read (读取电子表格)
+- docs:document:export (导出文档)
+- drive:export:readonly (导出云盘文件)
+- vc:export (导出多维表格)
+```
+
+### 4. 设置重定向URL
+
+在"安全设置"中，添加重定向URL：
+```
+http://localhost:8080/callback
+```
+
+### 5. 获取应用凭证
+
+在"凭证与基础信息"页面，记录以下信息：
+- **App ID** (应用ID)
+- **App Secret** (应用密钥)
+
+> 📖 **详细文档**: [飞书开放平台文档](https://open.feishu.cn/document/server-docs/api-call-guide/calling-process/get-access-token)
+
+### 6. 配置插件
 
 1. 在Unity编辑器中，打开菜单 `工具 > 飞书`
 2. 在"配置"标签页中，输入您的飞书应用信息：
    - **飞书应用ID** (App ID)
    - **飞书应用密钥** (App Secret)
+3. 点击"保存配置"按钮
 
-### 3. 授权登录
+### 7. 授权登录
 
 1. 点击"重新授权"按钮
 2. 系统会自动打开浏览器进行OAuth2授权
-3. 完成授权后，访问令牌会自动保存
+3. 在浏览器中完成飞书账号登录和授权
+4. 授权成功后，访问令牌会自动保存到本地
 
-### 4. 配置同步任务
+> ⚠️ **注意**: 首次授权需要确保浏览器能够访问 `http://localhost:8080/callback`
 
-1. 在"配置"标签页中添加文件同步配置：
-   - **文件类型**: 选择导出格式 (xlsx, pdf, docx, csv)
-   - **导出类型**: 选择内容类型 (sheet, doc, bitable)
-   - **Token**: 飞书文档/表格的token
-   - **本地路径**: 保存文件的本地路径
+### 8. 配置同步任务
 
-### 5. 开始同步
+在"配置"标签页中添加文件同步配置：
+
+#### 基本配置项
+- **文件类型**: 选择导出格式 (xlsx, pdf, docx, csv)
+- **导出类型**: 选择内容类型 (sheet, doc, bitable)
+- **Token**: 飞书文档/表格的token
+- **本地路径**: 保存文件的本地路径
+
+#### 高级配置项
+- **子表ID** (仅表格): 指定要导出的具体工作表
+- **文件名称**: 自定义导出文件的名称
+- **覆盖模式**: 选择是否覆盖已存在的文件
+
+### 9. 开始同步
 
 1. 切换到"同步"标签页
-2. 点击"开始同步数据"按钮
-3. 等待同步完成
+2. 查看已配置的同步任务列表
+3. 点击"开始同步数据"按钮
+4. 实时查看同步进度和状态
+5. 等待所有任务完成
+
+> 💡 **提示**: 可以同时配置多个同步任务，系统会按顺序执行
 
 ## 📖 详细使用说明
 
-### 飞书应用配置
+### 飞书应用配置详解
+
+#### 权限配置说明
 
 在飞书开放平台创建应用时，需要配置以下权限：
 
 ```
-offline_access
-sheets:spreadsheet:read
-drive:export:readonly
-docs:document:export
-vc:export
+基础权限：
+- offline_access (离线访问) - 允许应用在用户离线时访问数据
+
+文档权限：
+- sheets:spreadsheet:read (读取电子表格) - 读取飞书表格内容
+- drive:export:readonly (导出云盘文件) - 导出云盘中的文件
+- docs:document:export (导出文档) - 导出飞书文档
+- vc:export (导出多维表格) - 导出飞书多维表格
 ```
 
-回调地址设置为：`http://localhost:8080/callback`
+#### 回调地址配置
 
-### 获取文档Token
+回调地址必须设置为：`http://localhost:8080/callback`
 
-1. 打开飞书文档或表格
-2. 从URL中提取token，格式如：`https://example.feishu.cn/sheets/shtxxxxxxxxxxxxx`
-3. 将 `shtxxxxxxxxxxxxx` 部分作为token填入配置
+> 📖 **详细文档**: [飞书开放平台重定向URL配置](https://open.feishu.cn/document/develop-web-apps/configure-redirect-urls)
+
+### 获取文档Token详解
+
+#### 飞书表格Token获取
+
+1. 打开飞书表格
+2. 从URL中提取token，格式如：
+   ```
+   https://example.feishu.cn/sheets/FILE_TOKEN?sheet=SUB_ID
+   ```
+3. 将 `FILE_TOKEN` 部分作为token填入配置
+4. 将 `SUB_ID` 部分作为子表ID填入配置（可选）
+
+#### 飞书文档Token获取
+
+1. 打开飞书文档
+2. 从URL中提取token，格式如：
+   ```
+   https://example.feishu.cn/docs/FILE_TOKEN
+   ```
+3. 将 `FILE_TOKEN` 部分作为token填入配置
+
+#### 飞书多维表格Token获取
+
+1. 打开飞书多维表格
+2. 从URL中提取token，格式如：
+   ```
+   https://example.feishu.cn/base/FILE_TOKEN
+   ```
+3. 将 `FILE_TOKEN` 部分作为token填入配置
+
+### 路径配置说明
+
+#### 支持的路径格式
+
+- **Unity项目根目录相对路径**: 相对于Unity项目根目录的路径
+
+#### 路径配置示例
+
+```
+# 保存到项目根目录下的Documents文件夹
+Documents/
+
+# 保存到Assets文件夹
+Assets/Data/
+
+# 保存到StreamingAssets文件夹
+Assets/StreamingAssets/Config/
+
+# 保存到Resources文件夹
+Assets/Resources/GameData/
+```
 
 ### 支持的文件格式
 
@@ -89,11 +211,17 @@ vc:export
 
 ### 自定义保存路径
 
-可以在配置中指定自定义的本地保存路径，支持相对路径和绝对路径。
+可以在配置中指定自定义的本地保存路径，支持以下路径格式：
+
+- **Unity项目根目录相对路径**: 相对于Unity项目根目录的路径
 
 ### 批量配置
 
-支持添加多个同步配置，系统会按顺序执行所有配置的同步任务。
+支持添加多个同步配置，系统会按顺序执行所有配置的同步任务。每个配置可以：
+
+- 设置不同的导出格式
+- 指定不同的保存路径
+- 配置独立的文件命名规则
 
 ## 🐛 故障排除
 
@@ -117,17 +245,11 @@ A: 确保飞书应用已申请必要的API权限
 
 ## 📝 更新日志
 
-查看 [CHANGELOG.md](CHANGELOG.md) 了解版本更新详情。
+查看 [CHANGELOG.md](https://github.com/U-NV/FeiShu-Unity-Integration/blob/main/CHANGELOG.md) 了解版本更新详情。
 
 ## 🤝 贡献
 
 欢迎提交Issue和Pull Request！
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开Pull Request
 
 ## 📄 许可证
 
@@ -137,9 +259,8 @@ A: 确保飞书应用已申请必要的API权限
 
 如果您遇到问题或有任何建议，请：
 
-- 提交 [Issue](https://github.com/u0ugames/feishu-file-sync-unity/issues)
-- 发送邮件至 support@u0ugames.com
-
+- 提交 [Issue](https://github.com/U-NV/FeiShu-Unity-Integration/issues)
+- 
 ## 🙏 致谢
 
 感谢飞书开放平台提供的API支持。
