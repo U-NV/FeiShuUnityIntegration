@@ -109,7 +109,12 @@ namespace FeiShu.Editor
                     }
                     EditorGUILayout.EndHorizontal();
 
+                    EditorGUILayout.BeginHorizontal();
                     _config._scope = EditorGUILayout.TextField("权限范围:", _config._scope);
+                    if (GUILayout.Button("复原",GUILayout.Width(50))){
+                        _config._scope = FeiShuConfig.SCOPE;
+                    }
+                    EditorGUILayout.EndHorizontal();
                 }
                 EditorGUILayout.EndVertical();
             }
