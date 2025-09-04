@@ -1,0 +1,823 @@
+using UnityEngine;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using UnityEditor;
+using System.Net.Http;
+using System.Threading.Tasks;
+using System.Security.Cryptography;
+using System.Net;
+using System.Net.Sockets;
+using System.IO;
+
+namespace FeiShu.Editor
+{
+
+     public class FeiShuFileSyncEditorWindow 
+     {
+        private const string FEISHU_API_BASE = "https://open.feishu.cn/open-apis";
+        private FeiShuAccessTokenManager tokenManager;
+        private FeiShuConfig _config;
+         
+        public void Init()
+        {
+            _config = FeiShuConfig.GetOrCreateConfig();
+            tokenManager = new FeiShuAccessTokenManager();
+        }
+
+
+        private void ShowDebugInfo(){
+            var config = _config;
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+                            // 显示固定回调地址
+            EditorGUILayout.LabelField("回调地址:", "http://localhost:8080/callback (固定)");
+            EditorGUILayout.LabelField("权限范围:", config.Scope);
+                
+                            // 显示访问令牌状态
+                if (!string.IsNullOrEmpty(config.FeiShuUserAccessToken))
+                {
+                    var tokenStatus = "未知";
+                    var tokenColor = Color.white;
+                    
+                    if (!string.IsNullOrEmpty(config.FeiShuTokenExpiryTime))
+                    {
+                        if (DateTime.TryParse(config.FeiShuTokenExpiryTime, out DateTime expiryTime))
+                        {
+                            var now = DateTime.UtcNow;
+                            var timeUntilExpiry = expiryTime - now;
+                            
+                            if (timeUntilExpiry <= TimeSpan.Zero)
+                            {
+                                tokenStatus = "已过期";
+                                tokenColor = Color.red;
+                            }
+                            else if (timeUntilExpiry <= TimeSpan.FromMinutes(5))
+                            {
+                                tokenStatus = $"即将过期 ({timeUntilExpiry.TotalMinutes:F1}分钟)";
+                                tokenColor = Color.yellow;
+                            }
+                            else
+                            {
+                                tokenStatus = $"有效 ({timeUntilExpiry.TotalMinutes:F1}分钟)";
+                                tokenColor = Color.green;
+                            }
+                        }
+                    }
+                    
+                    var originalColor = GUI.color;
+                    GUI.color = tokenColor;
+                    EditorGUILayout.LabelField("访问令牌状态:", tokenStatus);
+                    GUI.color = originalColor;
+                }
+                else
+                {
+                    EditorGUILayout.LabelField("访问令牌状态:", "未授权");
+                }
+                
+            // 显示刷新令牌状态
+            if (!string.IsNullOrEmpty(config.FeiShuRefreshToken))
+            {
+                var refreshTokenStatus = "未知";
+                var refreshTokenColor = Color.white;
+                
+                if (!string.IsNullOrEmpty(config.FeiShuRefreshTokenExpiryTime))
+                {
+                    if (DateTime.TryParse(config.FeiShuRefreshTokenExpiryTime, out DateTime refreshExpiryTime))
+                    {
+                        var now = DateTime.UtcNow;
+                        var timeUntilRefreshExpiry = refreshExpiryTime - now;
+                        
+                        if (timeUntilRefreshExpiry <= TimeSpan.Zero)
+                        {
+                            refreshTokenStatus = "已过期";
+                            refreshTokenColor = Color.red;
+                        }
+                        else if (timeUntilRefreshExpiry <= TimeSpan.FromDays(7))
+                        {
+                            refreshTokenStatus = $"即将过期 ({timeUntilRefreshExpiry.TotalDays:F1}天)";
+                            refreshTokenColor = Color.yellow;
+                        }
+                        else
+                        {
+                            refreshTokenStatus = $"有效 ({timeUntilRefreshExpiry.TotalDays:F1}天)";
+                            refreshTokenColor = Color.green;
+                        }
+                    
+                    }
+                }
+                
+                var originalColor = GUI.color;
+                GUI.color = refreshTokenColor;
+                EditorGUILayout.LabelField("刷新令牌状态:", refreshTokenStatus);
+                GUI.color = originalColor;
+            }
+            else
+            {
+                EditorGUILayout.LabelField("刷新令牌状态:", "未获取");
+            }
+
+            if (GUILayout.Button("重新授权"))
+            {
+                _ = tokenManager.ForceUpdateAccessToken();
+            }
+            EditorGUILayout.EndVertical();
+        }
+
+        public void OnGUI()
+        {
+            GUILayout.Label("飞书文件导出任务", EditorStyles.boldLabel);
+            
+            if(!_config)
+            {
+                _config = FeiShuConfig.GetOrCreateConfig();
+            }
+            var config = _config;
+            
+            // 显示配置信息
+            GUILayout.Label($"飞书应用ID: {config.feiShuAppId}");
+            GUILayout.Label($"文件同步配置数量: {config.fileSyncConfigs.Count}");
+            
+
+           
+            
+            // 点击按钮，开始同步数据
+            if (GUILayout.Button("开始同步数据"))
+            {
+                CreateExportTaskAsync(config);
+            }
+            GUILayout.FlexibleSpace();
+            ShowDebugInfo();
+        }
+
+
+        /// <summary>
+        /// 发起飞书导出任务
+        /// 从FeiShuConfig获取配置数据
+        /// </summary>
+        public async void CreateExportTaskAsync(FeiShuConfig config)
+        {
+            try
+            {
+                if (config.fileSyncConfigs.Count == 0)
+                {
+                    Debug.LogWarning("没有配置文件同步任务，请先在FeiShuConfig中添加配置");
+                    return;
+                }
+
+                // 显示进度条标题
+                EditorUtility.DisplayProgressBar("飞书文件导出", "正在验证访问令牌...", 0f);
+                
+                await tokenManager.UpdateTokenStatus();
+                if(tokenManager.IsAccessTokenExpired(config.FeiShuTokenExpiryTime)){
+                    Debug.LogWarning("无法获得有效的访问令牌");
+                    EditorUtility.ClearProgressBar();
+                    return;
+                }
+                if(string.IsNullOrEmpty(config.FeiShuUserAccessToken)){
+                    Debug.LogWarning("无法获得有效的访问令牌");
+                    EditorUtility.ClearProgressBar();
+                    return;
+                }
+                                 // 获取访问令牌
+                string accessToken = config.FeiShuUserAccessToken;
+
+
+                // 遍历所有配置的同步任务
+                var totalTasks = config.fileSyncConfigs.Count;
+                var currentTask = 0;
+                
+                foreach (var syncConfig in config.fileSyncConfigs)
+                {
+                    currentTask++;
+                    var progress = (float)currentTask / totalTasks;
+                    
+                    if (string.IsNullOrEmpty(syncConfig.token))
+                    {
+                        Debug.LogWarning($"跳过无效配置: token={syncConfig.token}");
+                        continue;
+                    }
+
+                    // 如果sub_id为空，则通过查询表格数据获取
+                    string subId = syncConfig.token;
+                    if (string.IsNullOrEmpty(subId))
+                    {
+                        EditorUtility.DisplayProgressBar("飞书文件导出", 
+                            $"正在查询表格数据... ({currentTask}/{totalTasks})", progress);
+                        
+                        Debug.Log($"配置项 {syncConfig.token} 的sub_id为空，正在查询表格数据...");
+                        subId = await QuerySpreadsheetSheet(syncConfig.token, accessToken);
+                        
+                        if (string.IsNullOrEmpty(subId))
+                        {
+                            Debug.LogError($"无法获取表格 {syncConfig.token} 的sub_id，跳过此配置");
+                            continue;
+                        }
+                        
+                        Debug.Log($"成功获取表格 {syncConfig.token} 中第一张数据表的sub_id: {subId}");
+                        syncConfig.sub_id = subId;
+                        EditorUtility.SetDirty(config);
+                    }
+
+                    // 构造请求对象，从配置中获取数据
+                    var exportTask = new ExportTask
+                    {
+                        file_extension = syncConfig.file_extension.ToString(),
+                        token = syncConfig.token,
+                        type = syncConfig.type.ToString(),
+                        sub_id = subId
+                    };
+
+                    EditorUtility.DisplayProgressBar("飞书文件导出", 
+                        $"正在创建导出任务... ({currentTask}/{totalTasks})", progress);
+                    
+                    Debug.Log($"开始导出任务: {syncConfig.sub_id ?? "未命名"}, 类型: {syncConfig.type}, 格式: {syncConfig.file_extension}");
+                     
+                     // 步骤一：创建导出任务
+                     var createResponse = await CreateExportTask(exportTask, accessToken);
+                     if (!createResponse.success)
+                     {
+                         Debug.LogError($"创建导出任务失败，错误码: {createResponse.code}, 消息: {createResponse.msg}, 日志ID: {createResponse.log_id}");
+                         continue;
+                     }
+
+                     var ticket = createResponse.data?.ticket;
+                     if (string.IsNullOrEmpty(ticket))
+                     {
+                         Debug.LogError("创建导出任务成功但未获取到ticket");
+                         continue;
+                     }
+
+                     Debug.Log($"导出任务创建成功，票据: {ticket}");
+                     Debug.Log(JsonUtility.ToJson(createResponse.data, true));
+
+                     // 步骤二：查询导出任务结果
+                     EditorUtility.DisplayProgressBar("飞书文件导出", 
+                         $"正在等待导出完成... ({currentTask}/{totalTasks})", progress);
+                     
+                     Debug.Log($"开始查询导出任务结果，ticket: {ticket}");
+                     var maxRetries = 10; // 最大重试次数
+                     var retryCount = 0;
+                     GetExportTaskResponse resultResponse = null;
+
+                     while (retryCount < maxRetries)
+                     {
+                         // 等待一段时间再查询（导出需要时间）
+                         if (retryCount > 0)
+                         {
+                             var waitTime = Math.Min(5 * retryCount, 30); // 递增等待时间，最大30秒
+                             EditorUtility.DisplayProgressBar("飞书文件导出", 
+                                 $"正在等待导出完成... ({currentTask}/{totalTasks}) - 重试 {retryCount + 1}/{maxRetries}", progress);
+                             
+                             Debug.Log($"等待 {waitTime} 秒后重试查询...");
+                             await Task.Delay(waitTime * 1000);
+                         }
+
+                         resultResponse = await GetExportTaskResult(ticket, syncConfig.token, accessToken);
+                         if (resultResponse.success && resultResponse.data != null)
+                         {
+                             var status = resultResponse.data.result.job_status;
+                             var stateMessage = resultResponse.data.result.job_error_msg;
+                             Debug.Log($"导出任务状态: {status} : {stateMessage}");
+                             
+                            if (status == 0)
+                            {
+                                Debug.Log("导出任务完成！");
+                                break;
+                            }
+                         }
+                         else
+                         {
+                             Debug.LogError($"查询导出任务结果失败，重试次数: {retryCount + 1}");
+                             retryCount++;
+                         }
+                     }
+
+                     if (retryCount >= maxRetries)
+                     {
+                         Debug.LogError($"查询导出任务结果超时，已达到最大重试次数: {maxRetries}");
+                         continue;
+                     }
+
+                     if (resultResponse?.data?.result?.job_status != 0)
+                     {
+                         Debug.LogError("导出任务未成功完成，跳过下载");
+                         continue;
+                     }
+
+                     // 步骤三：下载导出文件
+                     var fileToken = resultResponse.data.result.file_token;
+                     if (string.IsNullOrEmpty(fileToken))
+                     {
+                         Debug.LogError("导出任务完成但未获取到文件token");
+                         continue;
+                     }
+
+                     // 清理和验证file_token
+                    //  fileToken = CleanAndValidateFileToken(fileToken);
+                    //  if (string.IsNullOrEmpty(fileToken))
+                    //  {
+                    //      Debug.LogError("file_token清理后为空，跳过下载");
+                    //      continue;
+                    //  }
+
+                     EditorUtility.DisplayProgressBar("飞书文件导出", 
+                         $"正在下载文件... ({currentTask}/{totalTasks})", progress);
+                     
+                     Debug.Log($"开始下载导出文件，file_token: {fileToken}");
+                     
+                     // 传递文件后缀信息，用于生成正确的文件名
+                     var downloadResponse = await DownloadExportFile(fileToken, accessToken, syncConfig.file_extension.ToString());
+                     
+                     if (downloadResponse.success && downloadResponse.data != null)
+                     {
+                         Debug.Log($"文件下载成功！");
+                         Debug.Log($"文件名: {downloadResponse.data.file_name}");
+                         Debug.Log($"文件大小: {downloadResponse.data.file_size}");
+                         Debug.Log($"文件类型: {downloadResponse.data.file_type}");
+                         
+                         EditorUtility.DisplayProgressBar("飞书文件导出", 
+                             $"正在保存文件... ({currentTask}/{totalTasks})", progress);
+                         
+                         // 直接保存文件到本地，因为飞书API已经返回了文件内容
+                         await SaveFileToLocal(downloadResponse.data, syncConfig);
+                     }
+                     else
+                     {
+                         Debug.LogError($"文件下载失败: {downloadResponse.msg}");
+                     }
+                }
+                AssetDatabase.SaveAssetIfDirty(config);
+                
+                // 清除进度条
+                EditorUtility.ClearProgressBar();
+                
+                // 显示完成消息
+                EditorUtility.DisplayDialog("导出完成", $"所有文件导出任务已完成！", "确定");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"创建导出任务时发生异常: {ex.Message}");
+                // 发生异常时也要清除进度条
+                EditorUtility.ClearProgressBar();
+                EditorUtility.DisplayDialog("导出失败", $"导出过程中发生异常: {ex.Message}", "确定");
+            }
+        }
+
+        /// <summary>
+        /// 查询表格数据获取sub_id
+        /// 模仿Python代码的C#实现
+        /// </summary>
+        private async Task<string> QuerySpreadsheetSheet(string spreadsheetToken, string userAccessToken)
+        {
+            try
+            {
+                var url = $"{FEISHU_API_BASE}/sheets/v3/spreadsheets/{spreadsheetToken}/sheets/query";
+                
+                // 创建新的HttpClient实例，避免共享状态问题
+                using (var client = new HttpClient())
+                {
+                    // 设置请求头
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {userAccessToken}");
+
+                    var response = await client.GetAsync(url);
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var sheetResponse = JsonUtility.FromJson<QuerySpreadsheetSheetResponse>(responseContent);
+                    
+                    if (sheetResponse.success && sheetResponse.data?.sheets != null && sheetResponse.data.sheets.Count > 0)
+                    {
+                        // 返回第一个表格的sheet_id
+                        var firstSheet = sheetResponse.data.sheets[0];
+                        Debug.Log($"查询到表格: {firstSheet.title}, sheet_id: {firstSheet.sheet_id}");
+                        return firstSheet.sheet_id;
+                    }
+                    else
+                    {
+                        Debug.LogError($"查询表格失败，响应: {responseContent}");
+                        return null;
+                    }
+                }
+                else
+                {
+                    Debug.LogError($"HTTP请求失败: {response.StatusCode}, 响应内容: {responseContent}");
+                    return null;
+                }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"查询表格数据异常: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 查询导出任务结果
+        /// 步骤二：根据导出任务ID获取导出结果和文件信息
+        /// </summary>
+        private async Task<GetExportTaskResponse> GetExportTaskResult(string ticket, string token, string userAccessToken)
+        {
+            try
+            {
+                var url = $"{FEISHU_API_BASE}/drive/v1/export_tasks/{ticket}?token={token}";
+                Debug.Log($"查询导出任务结果: {url}");
+
+                // 创建新的HttpClient实例，避免共享状态问题
+                using (var client = new HttpClient())
+                {
+                    // 设置请求头
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {userAccessToken}");
+
+                    var response = await client.GetAsync(url);
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    Debug.Log($"查询导出任务结果响应状态: {response.StatusCode}");
+                    Debug.Log($"查询导出任务结果响应内容: {responseContent}");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return JsonUtility.FromJson<GetExportTaskResponse>(responseContent);
+                    }
+                    else
+                    {
+                        Debug.LogError($"查询导出任务结果失败: {response.StatusCode}, 响应内容: {responseContent}");
+                        return new GetExportTaskResponse { code = (int)response.StatusCode, msg = responseContent };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"查询导出任务结果异常: {ex.Message}");
+                Debug.LogError($"异常类型: {ex.GetType().Name}");
+                Debug.LogError($"异常堆栈: {ex.StackTrace}");
+                return new GetExportTaskResponse { code = -1, msg = ex.Message };
+            }
+        }
+
+        /// <summary>
+        /// 下载导出文件
+        /// 步骤三：根据文件token下载导出文件
+        /// 参考飞书官方API文档和演示代码
+        /// </summary>
+        private async Task<DownloadExportResponse> DownloadExportFile(string fileToken, string userAccessToken, string fileExtension)
+        {
+            try
+            {
+                // 根据cURL示例，使用正确的API端点：/drive/v1/export_tasks/file/{file_token}/download
+                var url = $"{FEISHU_API_BASE}/drive/v1/export_tasks/file/{fileToken}/download";
+                Debug.Log($"下载导出文件: {url}");
+                Debug.Log($"file_token: {fileToken}");
+
+                // 创建新的HttpClient实例，避免共享状态问题
+                using (var client = new HttpClient())
+                {
+                    // 设置请求头 - 参考官方演示代码
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {userAccessToken}");
+                    
+                    // 设置超时时间（参考官方代码的Timeout = -1，这里设置为5分钟）
+                    client.Timeout = TimeSpan.FromMinutes(5);
+
+                    // 根据Python代码，使用GET请求，不需要请求体
+                    var response = await client.GetAsync(url);
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    Debug.Log($"下载导出文件响应状态: {response.StatusCode}");
+                    Debug.Log($"下载导出文件响应内容: {responseContent}");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        // 飞书API直接返回文件内容，不是JSON响应
+                        // 我们需要从响应头中获取文件信息
+                        var fileName = GetFileNameFromHeaders(response.Headers);
+                        var fileSize = response.Content.Headers.ContentLength ?? 0;
+                        
+                        // 读取文件内容
+                        var fileBytes = await response.Content.ReadAsByteArrayAsync();
+                        Debug.Log($"文件下载成功，大小: {fileBytes.Length} 字节");
+
+                        // 构造下载响应对象，使用指定的文件后缀
+                        if (string.IsNullOrEmpty(fileName))
+                        {
+                            // 如果没有从响应头获取到文件名，使用配置的文件后缀生成
+                            fileName = $"exported_file_{DateTime.Now:yyyyMMdd_HHmmss}.{fileExtension}";
+                        }
+                        else if (!fileName.EndsWith($".{fileExtension}"))
+                        {
+                            // 如果文件名没有正确的后缀，添加后缀
+                            fileName = $"{fileName}.{fileExtension}";
+                        }
+                        
+                        var downloadData = new DownloadFileData
+                        {
+                            file_name = fileName,
+                            file_size = fileSize.ToString(),
+                            file_type = GetFileTypeFromHeaders(response.Headers),
+                            file_content = fileBytes // 添加文件内容字段
+                        };
+
+                        return new DownloadExportResponse
+                        {
+                            code = 0,
+                            msg = "success",
+                            data = downloadData
+                        };
+                    }
+                    else
+                    {
+                        Debug.LogError($"下载导出文件失败: {response.StatusCode}, 响应内容: {responseContent}");
+                        return new DownloadExportResponse { code = (int)response.StatusCode, msg = responseContent };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"下载导出文件异常: {ex.Message}");
+                Debug.LogError($"异常类型: {ex.GetType().Name}");
+                Debug.LogError($"异常堆栈: {ex.StackTrace}");
+                return new DownloadExportResponse { code = -1, msg = ex.Message };
+            }
+        }
+
+        /// <summary>
+        /// 调用飞书API创建导出任务
+        /// </summary>
+        private async Task<CreateExportTaskResponse> CreateExportTask(ExportTask exportTask, string userAccessToken)
+        {
+            try
+            {
+                var url = $"{FEISHU_API_BASE}/drive/v1/export_tasks";
+                
+                var jsonContent = JsonUtility.ToJson(exportTask);
+                Debug.Log($"导出任务请求内容: {jsonContent}");
+                
+                // 使用StringContent，它会自动设置正确的Content-Type
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                Debug.Log($"Content-Type: {content.Headers.ContentType}");
+
+                // 创建新的HttpClient实例，避免共享状态问题
+                using (var client = new HttpClient())
+                {
+                    // 设置请求头
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {userAccessToken}");
+                    // 注意：StringContent会自动设置Content-Type，不需要手动添加
+
+                    Debug.Log($"发送请求到: {url}");
+                    Debug.Log($"使用访问令牌: {userAccessToken.Substring(0, Math.Min(20, userAccessToken.Length))}...");
+                    
+                    var response = await client.PostAsync(url, content);
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return JsonUtility.FromJson<CreateExportTaskResponse>(responseContent);
+                    }
+                    else
+                    {
+                        Debug.LogError($"HTTP请求失败: {response.StatusCode}, 响应内容: {responseContent}");
+                        return new CreateExportTaskResponse { code = (int)response.StatusCode, msg = responseContent };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"HTTP请求异常: {ex.Message}");
+                Debug.LogError($"异常类型: {ex.GetType().Name}");
+                Debug.LogError($"异常堆栈: {ex.StackTrace}");
+                return new CreateExportTaskResponse { code = -1, msg = ex.Message };
+            }
+        }
+
+        /// <summary>
+        /// 从响应头中获取文件名
+        /// </summary>
+        /// <param name="headers">HTTP响应头</param>
+        /// <returns>文件名，如果未找到则返回null</returns>
+        private string GetFileNameFromHeaders(System.Net.Http.Headers.HttpResponseHeaders headers)
+        {
+            try
+            {
+                // 尝试从Content-Disposition头获取文件名
+                if (headers.TryGetValues("Content-Disposition", out var contentDispositionValues))
+                {
+                    string contentDisposition = null;
+                    foreach (var value in contentDispositionValues)
+                    {
+                        contentDisposition = value;
+                        break;
+                    }
+                    
+                    if (!string.IsNullOrEmpty(contentDisposition))
+                    {
+                        // 解析Content-Disposition头，查找filename参数
+                        var filenameMatch = System.Text.RegularExpressions.Regex.Match(contentDisposition, @"filename\*?=(?:UTF-8'')?([^;]+)");
+                        if (filenameMatch.Success)
+                        {
+                            var filename = filenameMatch.Groups[1].Value.Trim('"');
+                            Debug.Log($"从Content-Disposition头获取到文件名: {filename}");
+                            return filename;
+                        }
+                    }
+                }
+
+                // 尝试从Content-Type头获取文件名
+                if (headers.TryGetValues("Content-Type", out var contentTypeValues))
+                {
+                    string contentType = null;
+                    foreach (var value in contentTypeValues)
+                    {
+                        contentType = value;
+                        break;
+                    }
+                    
+                    if (!string.IsNullOrEmpty(contentType))
+                    {
+                        Debug.Log($"Content-Type: {contentType}");
+                    }
+                }
+
+                Debug.LogWarning("未从响应头中找到文件名");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"解析响应头失败: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 从响应头中获取文件类型
+        /// </summary>
+        /// <param name="headers">HTTP响应头</param>
+        /// <returns>文件类型，如果未找到则返回默认值</returns>
+        private string GetFileTypeFromHeaders(System.Net.Http.Headers.HttpResponseHeaders headers)
+        {
+            try
+            {
+                if (headers.TryGetValues("Content-Type", out var contentTypeValues))
+                {
+                    string contentType = null;
+                    foreach (var value in contentTypeValues)
+                    {
+                        contentType = value;
+                        break;
+                    }
+                    
+                    if (!string.IsNullOrEmpty(contentType))
+                    {
+                        // 从Content-Type中提取文件类型
+                        var typeMatch = System.Text.RegularExpressions.Regex.Match(contentType, @"^([^/]+/[^;]+)");
+                        if (typeMatch.Success)
+                        {
+                            var fileType = typeMatch.Groups[1].Value;
+                            Debug.Log($"从Content-Type头获取到文件类型: {fileType}");
+                            return fileType;
+                        }
+                    }
+                }
+
+                Debug.LogWarning("未从响应头中找到文件类型，使用默认值");
+                return "application/octet-stream";
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"解析响应头失败: {ex.Message}");
+                return "application/octet-stream";
+            }
+        }
+
+        /// <summary>
+        /// 清理和验证file_token格式
+        /// 参考飞书官方API要求，确保file_token格式正确
+        /// </summary>
+        /// <param name="fileToken">原始file_token</param>
+        /// <returns>清理后的file_token，如果无效则返回null</returns>
+        private string CleanAndValidateFileToken(string fileToken)
+        {
+            if (string.IsNullOrEmpty(fileToken))
+            {
+                return null;
+            }
+
+            // 清理空白字符
+            var cleanedToken = fileToken.Trim();
+            
+            // 检查长度
+            if (cleanedToken.Length < 10 || cleanedToken.Length > 200)
+            {
+                Debug.LogWarning($"file_token长度异常: {cleanedToken.Length}, token: {cleanedToken}");
+                return null;
+            }
+
+            // 检查是否包含无效字符
+            var invalidChars = new[] { ' ', '\n', '\r', '\t', '<', '>', '"', '&', '\'', '\\' };
+            bool hasInvalidChar = false;
+            foreach (var c in cleanedToken)
+            {
+                if (Array.IndexOf(invalidChars, c) >= 0)
+                {
+                    hasInvalidChar = true;
+                    break;
+                }
+            }
+            if (hasInvalidChar)
+            {
+                Debug.LogWarning($"file_token包含无效字符: {cleanedToken}");
+                return null;
+            }
+
+            // 尝试URL解码，因为飞书的token可能包含URL编码字符
+            try
+            {
+                var decodedToken = Uri.UnescapeDataString(cleanedToken);
+                if (decodedToken != cleanedToken)
+                {
+                    Debug.Log($"file_token已URL解码: {decodedToken}");
+                    cleanedToken = decodedToken;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"file_token URL解码失败: {ex.Message}");
+                // 解码失败不是致命错误，继续使用原始token
+            }
+
+            Debug.Log($"file_token清理完成: {cleanedToken}");
+            return cleanedToken;
+        }
+
+        /// <summary>
+        /// 将下载的文件保存到本地
+        /// 根据配置的本地文件路径保存文件
+        /// </summary>
+        /// <param name="fileData">文件数据</param>
+        /// <param name="syncConfig">同步配置</param>
+        private async Task SaveFileToLocal(DownloadFileData fileData, FeiShuFileSyncConfig syncConfig)
+        {
+            try
+            {
+                if (fileData?.file_content == null || fileData.file_content.Length == 0)
+                {
+                    Debug.LogError("文件内容为空，无法保存");
+                    return;
+                }
+
+                // 确定保存路径
+                string savePath;
+                if (!string.IsNullOrEmpty(syncConfig.localFilePath))
+                {
+                    // 使用配置的路径
+                    savePath = syncConfig.localFilePath;
+                }
+                else
+                {
+                    // 使用默认路径
+                    var downloadDir = Path.Combine(Application.dataPath, "..", "Downloads", "FeiShu");
+                    if (!Directory.Exists(downloadDir))
+                    {
+                        Directory.CreateDirectory(downloadDir);
+                    }
+                    
+                    var fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{fileData.file_name}";
+                    savePath = Path.Combine(downloadDir, fileName);
+                }
+
+                // 确保目录存在
+                var directory = Path.GetDirectoryName(savePath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                // 保存文件
+                await File.WriteAllBytesAsync(savePath, fileData.file_content);
+                Debug.Log($"文件已保存到本地: {savePath}");
+                Debug.Log($"文件大小: {fileData.file_content.Length} 字节");
+                
+                // 更新进度条显示保存完成
+                EditorUtility.DisplayProgressBar("飞书文件导出", 
+                    $"文件保存完成: {Path.GetFileName(savePath)}", 1.0f);
+
+                // 在Unity中显示成功消息
+                EditorUtility.DisplayDialog("文件保存成功", 
+                    $"文件已成功保存到本地！\n\n保存路径: {savePath}\n文件大小: {fileData.file_size}", "确定");
+
+                // 更新配置中的本地文件路径（如果之前为空）
+                if (string.IsNullOrEmpty(syncConfig.localFilePath))
+                {
+                    syncConfig.localFilePath = savePath;
+                    // 注意：syncConfig 不是 ScriptableObject，所以不需要调用 SetDirty
+                    // 如果需要保存配置，应该在主流程中调用 AssetDatabase.SaveAssetIfDirty
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"保存文件到本地失败: {ex.Message}");
+                EditorUtility.DisplayDialog("保存失败", $"文件保存失败: {ex.Message}", "确定");
+            }
+        }
+    }
+}

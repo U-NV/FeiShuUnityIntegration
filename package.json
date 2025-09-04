@@ -1,0 +1,44 @@
+{
+  "name": "com.u0ugames.feishu_file_sync",
+  "displayName": "飞书文件同步插件",
+  "description": "Unity编辑器插件，用于与飞书API集成，实现文档、表格等文件的自动同步和导出功能。支持OAuth2授权、多格式文件导出（Excel、PDF、Word等）和批量文件同步。",
+  "version": "1.0.0",
+  "unity": "2019.4",
+  "unityRelease": "25f1",
+  "keywords": [
+    "feishu",
+    "飞书",
+    "file-sync",
+    "文件同步",
+    "api",
+    "oauth2",
+    "excel",
+    "document",
+    "unity-editor"
+  ],
+  "author": {
+    "name": "U0UGames",
+    "email": "support@u0ugames.com",
+    "url": "https://github.com/u0ugames"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/u0ugames/feishu-file-sync-unity",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/u0ugames/feishu-file-sync-unity.git"
+  },
+  "bugs": {
+    "url": "https://github.com/u0ugames/feishu-file-sync-unity/issues"
+  },
+  "category": "Editor",
+  "dependencies": {},
+  "samples": [
+    {
+      "displayName": "基础配置示例",
+      "description": "展示如何配置飞书应用和文件同步任务",
+      "path": "Samples~/BasicConfiguration"
+    }
+  ],
+  "changelogUrl": "https://github.com/u0ugames/feishu-file-sync-unity/blob/main/CHANGELOG.md",
+  "documentationUrl": "https://github.com/u0ugames/feishu-file-sync-unity/blob/main/README.md"
+}
