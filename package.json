@@ -2,7 +2,7 @@
   "name": "com.u0ugames.feishu_file_sync",
   "displayName": "飞书文件同步插件",
   "description": "Unity编辑器插件，用于与飞书API集成，实现文档、表格等文件的自动同步和导出功能。支持OAuth2授权、多格式文件导出（Excel、PDF、Word等）和批量文件同步。",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "unity": "2019.4",
   "unityRelease": "25f1",
   "keywords": [
