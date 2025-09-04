@@ -92,8 +92,6 @@ http://localhost:8080/callback
 
 #### 默认应用凭证
 使用默认应用时，凭证已内置在插件中：
-- **App ID**: `cli_a83cccd474fe100b`
-- **App Secret**: `dDu3S5gfXdSZ6MirgHvuFeoj7bs5xUfm`
 
 #### 自定义应用凭证
 如果创建自定义应用，在"凭证与基础信息"页面记录：
@@ -321,7 +319,6 @@ A: 确保飞书应用已申请必要的API权限
 如果您遇到问题或有任何建议，请：
 
 - 提交 [Issue](https://github.com/U-NV/FeiShu-Unity-Integration/issues)
-- 
 ## 🙏 致谢
 
 感谢飞书开放平台提供的API支持。
