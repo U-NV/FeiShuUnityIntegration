@@ -19,39 +19,44 @@ namespace FeiShu.Editor
         }
 
 
-        private string SelectPathBtn(string oldPath, string defaultText, bool isFolderPath, bool relativeToRoot = true)
+        private string SelectPathBtn(string oldPath, bool isFolderPath, bool relativeToRoot = true)
         {
-            string buttonText = null;
-            string openPath = null;
             string selectPath = oldPath;
 
+            var newPath = EditorGUILayout.TextField("相对文件路径:", selectPath);
+            if(newPath != selectPath)
+            {
+                return newPath;
+            }
+
+            string openPath = null;
             if (string.IsNullOrEmpty(oldPath))
             {
-                buttonText = defaultText;
                 openPath = relativeToRoot? UnityPathUtility.RootFolderPath: Application.dataPath;
             }
             else
             {
-               buttonText = oldPath;
                openPath = relativeToRoot?
                    UnityPathUtility.RootFolderPathToFullPath(oldPath):
                    UnityPathUtility.AssetPathToFullPath(oldPath);
             }
-            if (GUILayout.Button(buttonText))
+            if (GUILayout.Button("浏览",GUILayout.Width(50)))
             {
                 if (isFolderPath)
                 {
-                    selectPath = EditorUtility.OpenFolderPanel("选择数据文件夹", openPath, null);
+                    selectPath = EditorUtility.OpenFolderPanel("选择文件夹", openPath, null);
                 }
                 else
                 {
-                    selectPath = EditorUtility.OpenFilePanel("选择数据文件", Path.GetDirectoryName(openPath), "xlsx");
+                    selectPath = EditorUtility.OpenFilePanel("选择文件", Path.GetDirectoryName(openPath), "docx,pdf,xlsx,csv");
                 }
                 if (!string.IsNullOrEmpty(selectPath))
                 {
                     selectPath = relativeToRoot?
                         UnityPathUtility.FullPathToRootFolderPath(selectPath):
                         UnityPathUtility.FullPathToAssetPath(selectPath);
+                }else{
+                    selectPath = oldPath;
                 }
             }
 
@@ -72,9 +77,9 @@ namespace FeiShu.Editor
                 }
 
                 EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("本地文件路径:", GUILayout.Width(120));
+                // EditorGUILayout.LabelField("本地文件路径:", GUILayout.Width(120));
                 generateConfig.localFilePath = 
-                    SelectPathBtn(generateConfig.localFilePath, "选择本地文件", false,true);
+                    SelectPathBtn(generateConfig.localFilePath, false,true);
                 EditorGUILayout.EndHorizontal();
             }
             EditorGUILayout.EndVertical();
