@@ -71,15 +71,15 @@ namespace U0UGames.FeiShu.Editor
                 generateConfig.type = (FeiShuFileSyncConfig.ExportType)EditorGUILayout.EnumPopup("云文档类型:", generateConfig.type);
 
                 generateConfig.token = EditorGUILayout.TextField("token:", generateConfig.token);
-                if (generateConfig.type == FeiShuFileSyncConfig.ExportType.sheet || generateConfig.type == FeiShuFileSyncConfig.ExportType.bitable)
-                {
-                    generateConfig.sub_id = EditorGUILayout.TextField("sheet名:", generateConfig.sub_id);
-                }
+                // if (generateConfig.type == FeiShuFileSyncConfig.ExportType.sheet || generateConfig.type == FeiShuFileSyncConfig.ExportType.bitable)
+                // {
+                //     generateConfig.sub_id = EditorGUILayout.TextField("sheet名:", generateConfig.sub_id);
+                // }
 
                 EditorGUILayout.BeginHorizontal();
                 // EditorGUILayout.LabelField("本地文件路径:", GUILayout.Width(120));
-                generateConfig.localFilePath = 
-                    SelectPathBtn(generateConfig.localFilePath, false,true);
+                generateConfig.localFolderPath = 
+                    SelectPathBtn(generateConfig.localFolderPath, true,true);
                 EditorGUILayout.EndHorizontal();
             }
             EditorGUILayout.EndVertical();

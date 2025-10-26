@@ -157,7 +157,7 @@ namespace U0UGames.FeiShu.Editor
         public ExtensionType file_extension = ExtensionType.xlsx;
         public ExportType type = ExportType.sheet;
         public string token;
-        public string sub_id;
-        public string localFilePath;
+        // public string sub_id;
+        public string localFolderPath;
     }
 }

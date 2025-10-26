@@ -25,7 +25,7 @@ namespace U0UGames.FeiShu.Editor
         /// 查询表格数据获取sub_id
         /// 模仿Python代码的C#实现
         /// </summary>
-        private async Task<string> QuerySpreadsheetSheet(string spreadsheetToken, string userAccessToken)
+        private async Task<List<SheetInfo>> QuerySpreadsheetSheet(string spreadsheetToken, string userAccessToken)
         {
             try
             {
@@ -46,10 +46,11 @@ namespace U0UGames.FeiShu.Editor
                     
                     if (sheetResponse.success && sheetResponse.data?.sheets != null && sheetResponse.data.sheets.Count > 0)
                     {
+                        return sheetResponse.data.sheets;
                         // 返回第一个表格的sheet_id
-                        var firstSheet = sheetResponse.data.sheets[0];
-                        Debug.Log($"查询到表格: {firstSheet.title}, sheet_id: {firstSheet.sheet_id}");
-                        return firstSheet.sheet_id;
+                        // var firstSheet = sheetResponse.data.sheets[0];
+                        // Debug.Log($"查询到表格: {firstSheet.title}, sheet_id: {firstSheet.sheet_id}");
+                        // return firstSheet.sheet_id;
                     }
                     else
                     {
@@ -70,6 +71,123 @@ namespace U0UGames.FeiShu.Editor
                 return null;
             }
         }
+
+
+
+        public async Task SheetExportTaskAsync(FeiShuFileSyncConfig syncConfig, string accessToken, SheetInfo sheetInfo)
+        {
+            // 构造请求对象，从配置中获取数据
+            var exportTask = new ExportTask
+            {
+                file_extension = syncConfig.file_extension.ToString(),
+                token = syncConfig.token,
+                type = syncConfig.type.ToString(),
+                sub_id = sheetInfo.sheet_id
+            };
+
+
+            
+            Debug.Log($"开始导出任务: {sheetInfo.sheet_id ?? "未命名"}, 类型: {syncConfig.type}, 格式: {syncConfig.file_extension}");
+            
+            // 步骤一：创建导出任务
+            var createResponse = await CreateExportTask(exportTask, accessToken);
+            if (!createResponse.success)
+            {
+                Debug.LogError($"创建导出任务失败，错误码: {createResponse.code}, 消息: {createResponse.msg}, 日志ID: {createResponse.log_id}");
+                return;
+            }
+
+            var ticket = createResponse.data?.ticket;
+            if (string.IsNullOrEmpty(ticket))
+            {
+                Debug.LogError("创建导出任务成功但未获取到ticket");
+                return;
+            }
+
+            Debug.Log($"导出任务创建成功，票据: {ticket}");
+            Debug.Log(JsonUtility.ToJson(createResponse.data, true));
+
+            // 步骤二：查询导出任务结果
+            Debug.Log($"开始查询导出任务结果，ticket: {ticket}");
+            var maxRetries = 10; // 最大重试次数
+            var retryCount = 0;
+            GetExportTaskResponse resultResponse = null;
+
+            while (retryCount < maxRetries)
+            {
+                // 等待一段时间再查询（导出需要时间）
+                if (retryCount > 0)
+                {
+                    var waitTime = Math.Min(5 * retryCount, 30); // 递增等待时间，最大30秒
+                    Debug.Log($"等待 {waitTime} 秒后重试查询...");
+                    await Task.Delay(waitTime * 1000);
+                }
+
+                resultResponse = await GetExportTaskResult(ticket, syncConfig.token, accessToken);
+                if (resultResponse.success && resultResponse.data != null)
+                {
+                    var status = resultResponse.data.result.job_status;
+                    var stateMessage = resultResponse.data.result.job_error_msg;
+                    Debug.Log($"导出任务状态: {status} : {stateMessage}");
+                    
+                if (status == 0)
+                {
+                    Debug.Log("导出任务完成！");
+                    break;
+                }
+                }
+                else
+                {
+                    Debug.LogError($"查询导出任务结果失败，重试次数: {retryCount + 1}");
+                    retryCount++;
+                }
+            }
+
+            if (retryCount >= maxRetries)
+            {
+                Debug.LogError($"查询导出任务结果超时，已达到最大重试次数: {maxRetries}");
+                return;
+            }
+
+            if (resultResponse?.data?.result?.job_status != 0)
+            {
+                Debug.LogError("导出任务未成功完成，跳过下载");
+                return;
+            }
+
+            // 步骤三：下载导出文件
+            var fileToken = resultResponse.data.result.file_token;
+            if (string.IsNullOrEmpty(fileToken))
+            {
+                Debug.LogError("导出任务完成但未获取到文件token");
+                return;
+            }
+            
+            Debug.Log($"开始下载导出文件，file_token: {fileToken}");
+            
+            // 传递文件后缀信息，用于生成正确的文件名
+            var downloadResponse = await DownloadExportFile(fileToken, accessToken, syncConfig.file_extension.ToString());
+            
+            if (downloadResponse.success && downloadResponse.data != null)
+            {
+                Debug.Log($"文件下载成功！");
+                Debug.Log($"文件名: {resultResponse.data.result.file_name}");
+                Debug.Log($"文件大小: {downloadResponse.data.file_size}");
+                Debug.Log($"文件类型: {downloadResponse.data.file_type}");
+                
+                var folderPath = syncConfig.localFolderPath;
+                var fullFolderPath = UnityPathUtility.AssetPathToFullPath(folderPath);
+                var fileName = $"{resultResponse.data.result.file_name}_{sheetInfo.title}.{syncConfig.file_extension.ToString()}";
+                var fullFilePath = Path.Combine(fullFolderPath, fileName);
+                // 直接保存文件到本地，因为飞书API已经返回了文件内容
+                await SaveFileToLocal(downloadResponse.data, fullFilePath);
+            }
+            else
+            {
+                Debug.LogError($"文件下载失败: {downloadResponse.msg}");
+            }
+        }
+
         /// <summary>
         /// 发起飞书导出任务
         /// 从FeiShuConfig获取配置数据
@@ -105,6 +223,7 @@ namespace U0UGames.FeiShu.Editor
                 // 遍历所有配置的同步任务
                 var totalTasks = config.fileSyncConfigs.Count;
                 var currentTask = 0;
+                var downloadTasks = new List<Task>(); // 收集所有下载任务
                 
                 foreach (var syncConfig in config.fileSyncConfigs)
                 {
@@ -117,155 +236,60 @@ namespace U0UGames.FeiShu.Editor
                         continue;
                     }
 
+                    EditorUtility.DisplayProgressBar("飞书文件导出", 
+                        $"正在准备导出任务... ({currentTask}/{totalTasks})", progress);
+                        
                     // 如果sub_id为空，则通过查询表格数据获取
-                    string subId = syncConfig.token;
-                    if (string.IsNullOrEmpty(subId))
+                    if(syncConfig.type == FeiShuFileSyncConfig.ExportType.sheet)
                     {
-                        EditorUtility.DisplayProgressBar("飞书文件导出", 
-                            $"正在查询表格数据... ({currentTask}/{totalTasks})", progress);
-                        
-                        Debug.Log($"配置项 {syncConfig.token} 的sub_id为空，正在查询表格数据...");
-                        subId = await QuerySpreadsheetSheet(syncConfig.token, accessToken);
-                        
-                        if (string.IsNullOrEmpty(subId))
+                        List<SheetInfo> sheetInfoList = await QuerySpreadsheetSheet(syncConfig.token, accessToken);
+
+                        if(sheetInfoList == null && sheetInfoList.Count <= 0)
                         {
-                            Debug.LogError($"无法获取表格 {syncConfig.token} 的sub_id，跳过此配置");
                             continue;
                         }
-                        
-                        Debug.Log($"成功获取表格 {syncConfig.token} 中第一张数据表的sub_id: {subId}");
-                        syncConfig.sub_id = subId;
-                        EditorUtility.SetDirty(config);
+
+                        foreach(var sheetInfo in sheetInfoList){
+                            // 将异步任务添加到列表中，而不是直接调用
+                            var task = SheetExportTaskAsync(syncConfig, accessToken, sheetInfo);
+                            downloadTasks.Add(task);
+                        }
                     }
-
-                    // 构造请求对象，从配置中获取数据
-                    var exportTask = new ExportTask
-                    {
-                        file_extension = syncConfig.file_extension.ToString(),
-                        token = syncConfig.token,
-                        type = syncConfig.type.ToString(),
-                        sub_id = subId
-                    };
-
-                    EditorUtility.DisplayProgressBar("飞书文件导出", 
-                        $"正在创建导出任务... ({currentTask}/{totalTasks})", progress);
                     
-                    Debug.Log($"开始导出任务: {syncConfig.sub_id ?? "未命名"}, 类型: {syncConfig.type}, 格式: {syncConfig.file_extension}");
-                     
-                     // 步骤一：创建导出任务
-                     var createResponse = await CreateExportTask(exportTask, accessToken);
-                     if (!createResponse.success)
-                     {
-                         Debug.LogError($"创建导出任务失败，错误码: {createResponse.code}, 消息: {createResponse.msg}, 日志ID: {createResponse.log_id}");
-                         continue;
-                     }
 
-                     var ticket = createResponse.data?.ticket;
-                     if (string.IsNullOrEmpty(ticket))
-                     {
-                         Debug.LogError("创建导出任务成功但未获取到ticket");
-                         continue;
-                     }
+                    // if (string.IsNullOrEmpty(subId))
+                    // {
+                    //     EditorUtility.DisplayProgressBar("飞书文件导出", 
+                    //         $"正在查询表格数据... ({currentTask}/{totalTasks})", progress);
+                        
+                    //     Debug.Log($"配置项 {syncConfig.token} 的sub_id为空，正在查询表格数据...");
+                    //     subId = 
+                        
+                    //     if (string.IsNullOrEmpty(subId))
+                    //     {
+                    //         Debug.LogError($"无法获取表格 {syncConfig.token} 的sub_id，跳过此配置");
+                    //         continue;
+                    //     }
+                        
+                    //     Debug.Log($"成功获取表格 {syncConfig.token} 中第一张数据表的sub_id: {subId}");
+                    //     syncConfig.sub_id = subId;
+                    //     EditorUtility.SetDirty(config);
+                    // }
 
-                     Debug.Log($"导出任务创建成功，票据: {ticket}");
-                     Debug.Log(JsonUtility.ToJson(createResponse.data, true));
-
-                     // 步骤二：查询导出任务结果
-                     EditorUtility.DisplayProgressBar("飞书文件导出", 
-                         $"正在等待导出完成... ({currentTask}/{totalTasks})", progress);
-                     
-                     Debug.Log($"开始查询导出任务结果，ticket: {ticket}");
-                     var maxRetries = 10; // 最大重试次数
-                     var retryCount = 0;
-                     GetExportTaskResponse resultResponse = null;
-
-                     while (retryCount < maxRetries)
-                     {
-                         // 等待一段时间再查询（导出需要时间）
-                         if (retryCount > 0)
-                         {
-                             var waitTime = Math.Min(5 * retryCount, 30); // 递增等待时间，最大30秒
-                             EditorUtility.DisplayProgressBar("飞书文件导出", 
-                                 $"正在等待导出完成... ({currentTask}/{totalTasks}) - 重试 {retryCount + 1}/{maxRetries}", progress);
-                             
-                             Debug.Log($"等待 {waitTime} 秒后重试查询...");
-                             await Task.Delay(waitTime * 1000);
-                         }
-
-                         resultResponse = await GetExportTaskResult(ticket, syncConfig.token, accessToken);
-                         if (resultResponse.success && resultResponse.data != null)
-                         {
-                             var status = resultResponse.data.result.job_status;
-                             var stateMessage = resultResponse.data.result.job_error_msg;
-                             Debug.Log($"导出任务状态: {status} : {stateMessage}");
-                             
-                            if (status == 0)
-                            {
-                                Debug.Log("导出任务完成！");
-                                break;
-                            }
-                         }
-                         else
-                         {
-                             Debug.LogError($"查询导出任务结果失败，重试次数: {retryCount + 1}");
-                             retryCount++;
-                         }
-                     }
-
-                     if (retryCount >= maxRetries)
-                     {
-                         Debug.LogError($"查询导出任务结果超时，已达到最大重试次数: {maxRetries}");
-                         continue;
-                     }
-
-                     if (resultResponse?.data?.result?.job_status != 0)
-                     {
-                         Debug.LogError("导出任务未成功完成，跳过下载");
-                         continue;
-                     }
-
-                     // 步骤三：下载导出文件
-                     var fileToken = resultResponse.data.result.file_token;
-                     if (string.IsNullOrEmpty(fileToken))
-                     {
-                         Debug.LogError("导出任务完成但未获取到文件token");
-                         continue;
-                     }
-
-                     // 清理和验证file_token
-                    //  fileToken = CleanAndValidateFileToken(fileToken);
-                    //  if (string.IsNullOrEmpty(fileToken))
-                    //  {
-                    //      Debug.LogError("file_token清理后为空，跳过下载");
-                    //      continue;
-                    //  }
-
-                     EditorUtility.DisplayProgressBar("飞书文件导出", 
-                         $"正在下载文件... ({currentTask}/{totalTasks})", progress);
-                     
-                     Debug.Log($"开始下载导出文件，file_token: {fileToken}");
-                     
-                     // 传递文件后缀信息，用于生成正确的文件名
-                     var downloadResponse = await DownloadExportFile(fileToken, accessToken, syncConfig.file_extension.ToString());
-                     
-                     if (downloadResponse.success && downloadResponse.data != null)
-                     {
-                         Debug.Log($"文件下载成功！");
-                         Debug.Log($"文件名: {downloadResponse.data.file_name}");
-                         Debug.Log($"文件大小: {downloadResponse.data.file_size}");
-                         Debug.Log($"文件类型: {downloadResponse.data.file_type}");
-                         
-                         EditorUtility.DisplayProgressBar("飞书文件导出", 
-                             $"正在保存文件... ({currentTask}/{totalTasks})", progress);
-                         
-                         // 直接保存文件到本地，因为飞书API已经返回了文件内容
-                         await SaveFileToLocal(downloadResponse.data, syncConfig);
-                     }
-                     else
-                     {
-                         Debug.LogError($"文件下载失败: {downloadResponse.msg}");
-                     }
+               
                 }
+                
+                // 等待所有下载任务完成
+                if (downloadTasks.Count > 0)
+                {
+                    EditorUtility.DisplayProgressBar("飞书文件导出", 
+                        "正在等待所有下载任务完成...", 0.9f);
+                    
+                    Debug.Log($"等待 {downloadTasks.Count} 个下载任务完成...");
+                    await Task.WhenAll(downloadTasks);
+                    Debug.Log("所有下载任务已完成！");
+                }
+                
                 AssetDatabase.SaveAssetIfDirty(config);
                 
                 // 清除进度条
@@ -563,7 +587,7 @@ namespace U0UGames.FeiShu.Editor
         /// </summary>
         /// <param name="fileData">文件数据</param>
         /// <param name="syncConfig">同步配置</param>
-        private async Task SaveFileToLocal(DownloadFileData fileData, FeiShuFileSyncConfig syncConfig)
+        private async Task SaveFileToLocal(DownloadFileData fileData, string fileFullPath)
         {
             try
             {
@@ -574,24 +598,13 @@ namespace U0UGames.FeiShu.Editor
                 }
 
                 // 确定保存路径
-                string savePath;
-                if (!string.IsNullOrEmpty(syncConfig.localFilePath))
+                
+                if (string.IsNullOrEmpty(fileFullPath))
                 {
-                    // 使用配置的路径
-                    savePath = syncConfig.localFilePath;
+                    Debug.LogError("文件保存路径为空，无法保存");
+                    return; 
                 }
-                else
-                {
-                    // 使用默认路径
-                    var downloadDir = Path.Combine(Application.dataPath, "..", "Downloads", "FeiShu");
-                    if (!Directory.Exists(downloadDir))
-                    {
-                        Directory.CreateDirectory(downloadDir);
-                    }
-                    
-                    var fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{fileData.file_name}";
-                    savePath = Path.Combine(downloadDir, fileName);
-                }
+                string savePath= fileFullPath;
 
                 // 确保目录存在
                 var directory = Path.GetDirectoryName(savePath);
@@ -610,21 +623,21 @@ namespace U0UGames.FeiShu.Editor
                     $"文件保存完成: {Path.GetFileName(savePath)}", 1.0f);
 
                 // 在Unity中显示成功消息
-                EditorUtility.DisplayDialog("文件保存成功", 
-                    $"文件已成功保存到本地！\n\n保存路径: {savePath}\n文件大小: {fileData.file_size}", "确定");
+                // EditorUtility.DisplayDialog("文件保存成功", 
+                //     $"文件已成功保存到本地！\n\n保存路径: {savePath}\n文件大小: {fileData.file_size}", "确定");
 
                 // 更新配置中的本地文件路径（如果之前为空）
-                if (string.IsNullOrEmpty(syncConfig.localFilePath))
-                {
-                    syncConfig.localFilePath = savePath;
-                    // 注意：syncConfig 不是 ScriptableObject，所以不需要调用 SetDirty
-                    // 如果需要保存配置，应该在主流程中调用 AssetDatabase.SaveAssetIfDirty
-                }
+                // if (string.IsNullOrEmpty(syncConfig.localFilePath))
+                // {
+                //     syncConfig.localFilePath = savePath;
+                //     // 注意：syncConfig 不是 ScriptableObject，所以不需要调用 SetDirty
+                //     // 如果需要保存配置，应该在主流程中调用 AssetDatabase.SaveAssetIfDirty
+                // }
             }
             catch (Exception ex)
             {
                 Debug.LogError($"保存文件到本地失败: {ex.Message}");
-                EditorUtility.DisplayDialog("保存失败", $"文件保存失败: {ex.Message}", "确定");
+                // EditorUtility.DisplayDialog("保存失败", $"文件保存失败: {ex.Message}", "确定");
             }
         }
     }
