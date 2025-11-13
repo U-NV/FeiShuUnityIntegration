@@ -45,16 +45,16 @@ namespace U0UGames.FeiShu.Editor
                 {
                     EditorGUILayout.BeginHorizontal();
                     _config.feiShuAppId = EditorGUILayout.TextField("飞书AppId:", _config.feiShuAppId);
-                    if (GUILayout.Button("复原",GUILayout.Width(50))){
-                        _config.feiShuAppId = FeiShuConfig.FEISHU_APP_ID;
-                    }
+                    // if (GUILayout.Button("复原",GUILayout.Width(50))){
+                    //     _config.feiShuAppId = FeiShuConfig.FEISHU_APP_ID;
+                    // }
                     EditorGUILayout.EndHorizontal();
 
                     EditorGUILayout.BeginHorizontal();
                     _config.feiShuAppSecret = EditorGUILayout.TextField("飞书AppSecret:", _config.feiShuAppSecret);
-                    if (GUILayout.Button("复原",GUILayout.Width(50))){
-                        _config.feiShuAppSecret = FeiShuConfig.FEISHU_APP_SECRET;
-                    }
+                    // if (GUILayout.Button("复原",GUILayout.Width(50))){
+                    //     _config.feiShuAppSecret = FeiShuConfig.FEISHU_APP_SECRET;
+                    // }
                     EditorGUILayout.EndHorizontal();
 
                     EditorGUILayout.BeginHorizontal();

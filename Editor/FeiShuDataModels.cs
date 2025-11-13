@@ -210,4 +210,41 @@ namespace U0UGames.FeiShu.Editor
     {
         public string file_token;
     }
+
+    // 获取知识空间节点信息的数据模型
+    [System.Serializable]
+    public class GetNodeSpaceResponse
+    {
+        public int code;
+        public string msg;
+        public GetNodeSpaceData data;
+        public bool success => code == 0;
+    }
+
+    [System.Serializable]
+    public class GetNodeSpaceData
+    {
+        public NodeInfo node;
+    }
+
+    [System.Serializable]
+    public class NodeInfo
+    {
+        public string space_id;
+        public string node_token;
+        public string obj_token;
+        public string obj_type;
+        public string parent_node_token;
+        public string node_type;
+        public string origin_node_token;
+        public string origin_space_id;
+        public bool has_child;
+        public string title;
+        public string obj_create_time;
+        public string obj_edit_time;
+        public string node_create_time;
+        public string creator;
+        public string owner;
+        public string node_creator;
+    }
 }

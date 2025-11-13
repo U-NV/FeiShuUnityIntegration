@@ -67,10 +67,11 @@ namespace U0UGames.FeiShu.Editor
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             {
+                generateConfig.isWikiNode = EditorGUILayout.Toggle("是否是知识库节点:", generateConfig.isWikiNode);
                 generateConfig.file_extension = (FeiShuFileSyncConfig.ExtensionType)EditorGUILayout.EnumPopup("文件扩展名:", generateConfig.file_extension);
                 generateConfig.type = (FeiShuFileSyncConfig.ExportType)EditorGUILayout.EnumPopup("云文档类型:", generateConfig.type);
 
-                generateConfig.token = EditorGUILayout.TextField("token:", generateConfig.token);
+                generateConfig.fileToken = EditorGUILayout.TextField("token:", generateConfig.fileToken);
                 // if (generateConfig.type == FeiShuFileSyncConfig.ExportType.sheet || generateConfig.type == FeiShuFileSyncConfig.ExportType.bitable)
                 // {
                 //     generateConfig.sub_id = EditorGUILayout.TextField("sheet名:", generateConfig.sub_id);

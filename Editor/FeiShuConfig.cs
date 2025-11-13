@@ -38,13 +38,13 @@ namespace U0UGames.FeiShu.Editor
     [System.Serializable]
     public class FeiShuConfig:ScriptableObject
     {
-        public const string FEISHU_APP_ID = "cli_a83cccd474fe100b";
-        public const string FEISHU_APP_SECRET = "dDu3S5gfXdSZ6MirgHvuFeoj7bs5xUfm";
-        public string feiShuAppId = FEISHU_APP_ID;
-        public string feiShuAppSecret = FEISHU_APP_SECRET;
+        // public const string FEISHU_APP_ID = "cli_a83cccd474fe100b";
+        // public const string FEISHU_APP_SECRET = "dDu3S5gfXdSZ6MirgHvuFeoj7bs5xUfm";
+        public string feiShuAppId = "";
+        public string feiShuAppSecret = "";
         // public string feiShuAuthorizationCode = "";
         public string _scope = SCOPE;
-        public const string SCOPE = "offline_access sheets:spreadsheet:read drive:export:readonly docs:document:export vc:export drive:drive drive:file drive:file:upload"; // 权限范围
+        public const string SCOPE = "offline_access sheets:spreadsheet:read drive:export:readonly docs:document:export vc:export drive:drive drive:file drive:file:upload wiki:wiki wiki:wiki:readonly wiki:node:read"; // 权限范围
         public string Scope{
             get{
                 if(string.IsNullOrEmpty(_scope)){
@@ -154,10 +154,21 @@ namespace U0UGames.FeiShu.Editor
             bitable,
             docx
         }
+        [Tooltip("是否是知识库节点")]
+        public bool isWikiNode = true;
         public ExtensionType file_extension = ExtensionType.xlsx;
         public ExportType type = ExportType.sheet;
-        public string token;
+        public string fileToken;
         // public string sub_id;
         public string localFolderPath;
+
+        public void Clone(FeiShuFileSyncConfig config)
+        {
+            this.isWikiNode = config.isWikiNode;
+            this.file_extension = config.file_extension;
+            this.type = config.type;
+            this.fileToken = config.fileToken;
+            this.localFolderPath = config.localFolderPath;
+        }
     }
 }

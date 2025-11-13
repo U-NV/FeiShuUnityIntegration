@@ -80,7 +80,7 @@ namespace U0UGames.FeiShu.Editor
             var exportTask = new ExportTask
             {
                 file_extension = syncConfig.file_extension.ToString(),
-                token = syncConfig.token,
+                token = syncConfig.fileToken,
                 type = syncConfig.type.ToString(),
                 sub_id = sheetInfo.sheet_id
             };
@@ -123,7 +123,7 @@ namespace U0UGames.FeiShu.Editor
                     await Task.Delay(waitTime * 1000);
                 }
 
-                resultResponse = await GetExportTaskResult(ticket, syncConfig.token, accessToken);
+                resultResponse = await GetExportTaskResult(ticket, syncConfig.fileToken, accessToken);
                 if (resultResponse.success && resultResponse.data != null)
                 {
                     var status = resultResponse.data.result.job_status;
@@ -187,6 +187,38 @@ namespace U0UGames.FeiShu.Editor
                 Debug.LogError($"文件下载失败: {downloadResponse.msg}");
             }
         }
+        
+        private async Task NewWikiExprotTask(string accessToken, FeiShuFileSyncConfig syncConfig, List<Task> downloadTasks)
+        {
+            var realSyncConfig = new FeiShuFileSyncConfig();
+            realSyncConfig.Clone(syncConfig);
+            NodeInfo nodeInfo = await FeiShuWikiUtility.GetWikiNodeInfo(accessToken, syncConfig.fileToken);
+            realSyncConfig.fileToken = nodeInfo.obj_token;
+            // Debug.LogError("nodeInfo: " + JsonUtility.ToJson(nodeInfo, true));
+            if(string.IsNullOrEmpty(realSyncConfig.fileToken)){
+                Debug.LogError("无法获得有效的文件token");
+                return;
+            }
+            await NewExportTask(accessToken, realSyncConfig, downloadTasks);
+        }
+
+        private async Task NewExportTask(string accessToken, FeiShuFileSyncConfig syncConfig, List<Task> downloadTasks){
+            if(syncConfig.type == FeiShuFileSyncConfig.ExportType.sheet)
+            {
+                List<SheetInfo> sheetInfoList = await QuerySpreadsheetSheet(syncConfig.fileToken, accessToken);
+
+                if(sheetInfoList == null && sheetInfoList.Count <= 0)
+                {
+                    return;
+                }
+
+                foreach(var sheetInfo in sheetInfoList){
+                    // 将异步任务添加到列表中，而不是直接调用
+                    var task = SheetExportTaskAsync(syncConfig, accessToken, sheetInfo);
+                    downloadTasks.Add(task);
+                }
+            }
+        }
 
         /// <summary>
         /// 发起飞书导出任务
@@ -230,53 +262,21 @@ namespace U0UGames.FeiShu.Editor
                     currentTask++;
                     var progress = (float)currentTask / totalTasks;
                     
-                    if (string.IsNullOrEmpty(syncConfig.token))
+                    if (string.IsNullOrEmpty(syncConfig.fileToken))
                     {
-                        Debug.LogWarning($"跳过无效配置: token={syncConfig.token}");
+                        Debug.LogWarning($"跳过无效配置: token={syncConfig.fileToken}");
                         continue;
                     }
 
                     EditorUtility.DisplayProgressBar("飞书文件导出", 
                         $"正在准备导出任务... ({currentTask}/{totalTasks})", progress);
-                        
-                    // 如果sub_id为空，则通过查询表格数据获取
-                    if(syncConfig.type == FeiShuFileSyncConfig.ExportType.sheet)
-                    {
-                        List<SheetInfo> sheetInfoList = await QuerySpreadsheetSheet(syncConfig.token, accessToken);
 
-                        if(sheetInfoList == null && sheetInfoList.Count <= 0)
-                        {
-                            continue;
-                        }
-
-                        foreach(var sheetInfo in sheetInfoList){
-                            // 将异步任务添加到列表中，而不是直接调用
-                            var task = SheetExportTaskAsync(syncConfig, accessToken, sheetInfo);
-                            downloadTasks.Add(task);
-                        }
+                    var fileToken = syncConfig.fileToken;
+                    if(syncConfig.isWikiNode){
+                        await NewWikiExprotTask(accessToken, syncConfig, downloadTasks);
+                    }else{
+                        await NewExportTask(accessToken, syncConfig, downloadTasks);
                     }
-                    
-
-                    // if (string.IsNullOrEmpty(subId))
-                    // {
-                    //     EditorUtility.DisplayProgressBar("飞书文件导出", 
-                    //         $"正在查询表格数据... ({currentTask}/{totalTasks})", progress);
-                        
-                    //     Debug.Log($"配置项 {syncConfig.token} 的sub_id为空，正在查询表格数据...");
-                    //     subId = 
-                        
-                    //     if (string.IsNullOrEmpty(subId))
-                    //     {
-                    //         Debug.LogError($"无法获取表格 {syncConfig.token} 的sub_id，跳过此配置");
-                    //         continue;
-                    //     }
-                        
-                    //     Debug.Log($"成功获取表格 {syncConfig.token} 中第一张数据表的sub_id: {subId}");
-                    //     syncConfig.sub_id = subId;
-                    //     EditorUtility.SetDirty(config);
-                    // }
-
-               
                 }
                 
                 // 等待所有下载任务完成
