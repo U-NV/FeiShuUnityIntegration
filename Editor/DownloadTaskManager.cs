@@ -173,11 +173,11 @@ namespace U0UGames.FeiShu.Editor
                 Debug.Log($"文件下载成功！");
                 Debug.Log($"文件名: {resultResponse.data.result.file_name}");
                 Debug.Log($"文件大小: {downloadResponse.data.file_size}");
-                Debug.Log($"文件类型: {downloadResponse.data.file_type}");
+                // Debug.Log($"文件类型: {downloadResponse.data.file_type}");
                 
                 var folderPath = syncConfig.localFolderPath;
                 var fullFolderPath = UnityPathUtility.AssetPathToFullPath(folderPath);
-                var fileName = $"{resultResponse.data.result.file_name}_{sheetInfo.title}.{syncConfig.file_extension.ToString()}";
+                var fileName = $"{resultResponse.data.result.file_name}.{syncConfig.file_extension.ToString()}";
                 var fullFilePath = Path.Combine(fullFolderPath, fileName);
                 // 直接保存文件到本地，因为飞书API已经返回了文件内容
                 await SaveFileToLocal(downloadResponse.data, fullFilePath);
@@ -211,7 +211,15 @@ namespace U0UGames.FeiShu.Editor
                 {
                     return;
                 }
+                // foreach(var sheetInfo in sheetInfoList){
+                //     Debug.Log($"file:{sheetInfo.title} sheet:{sheetInfo.sheet_id}");
+                // }
+                // if(sheetInfoList != null && sheetInfoList.Count > 0 && sheetInfoList[0] != null)
+                // {
+                //     var task = SheetExportTaskAsync(syncConfig, accessToken, sheetInfoList[0]);
+                //     downloadTasks.Add(task);
 
+                // }
                 foreach(var sheetInfo in sheetInfoList){
                     // 将异步任务添加到列表中，而不是直接调用
                     var task = SheetExportTaskAsync(syncConfig, accessToken, sheetInfo);
@@ -374,39 +382,55 @@ namespace U0UGames.FeiShu.Editor
 
                     // 根据Python代码，使用GET请求，不需要请求体
                     var response = await client.GetAsync(url);
-                    var responseContent = await response.Content.ReadAsStringAsync();
 
                     Debug.Log($"下载导出文件响应状态: {response.StatusCode}");
-                    Debug.Log($"下载导出文件响应内容: {responseContent}");
 
                     if (response.IsSuccessStatusCode)
                     {
                         // 飞书API直接返回文件内容，不是JSON响应
                         // 我们需要从响应头中获取文件信息
-                        var fileName = GetFileNameFromHeaders(response.Headers);
+                        // var fileName = GetFileNameFromHeaders(response.Headers);
                         var fileSize = response.Content.Headers.ContentLength ?? 0;
                         
-                        // 读取文件内容
+                        // 直接读取文件内容为字节数组（不要先读取为字符串，因为HttpContent只能读取一次）
+                        // 对于二进制文件（如Excel），必须直接读取字节数组，否则会导致文件损坏
                         var fileBytes = await response.Content.ReadAsByteArrayAsync();
                         Debug.Log($"文件下载成功，大小: {fileBytes.Length} 字节");
+                        
+                        // 验证文件头，确保是有效的Excel文件（可选，用于调试）
+                        // if (fileBytes.Length >= 4)
+                        // {
+                        //     // Excel文件（.xlsx）的ZIP文件头：PK\x03\x04
+                        //     var isZipFormat = fileBytes[0] == 0x50 && fileBytes[1] == 0x4B && 
+                        //                     (fileBytes[2] == 0x03 || fileBytes[2] == 0x05 || fileBytes[2] == 0x07) && 
+                        //                     (fileBytes[3] == 0x04 || fileBytes[3] == 0x06 || fileBytes[3] == 0x08);
+                        //     if (isZipFormat)
+                        //     {
+                        //         Debug.Log("文件格式验证：检测到ZIP格式（Excel .xlsx文件应为ZIP格式）");
+                        //     }
+                        //     else
+                        //     {
+                        //         Debug.LogWarning($"文件格式验证：文件头不是标准的ZIP格式，可能不是有效的Excel文件");
+                        //     }
+                        // }
 
                         // 构造下载响应对象，使用指定的文件后缀
-                        if (string.IsNullOrEmpty(fileName))
-                        {
-                            // 如果没有从响应头获取到文件名，使用配置的文件后缀生成
-                            fileName = $"exported_file_{DateTime.Now:yyyyMMdd_HHmmss}.{fileExtension}";
-                        }
-                        else if (!fileName.EndsWith($".{fileExtension}"))
-                        {
-                            // 如果文件名没有正确的后缀，添加后缀
-                            fileName = $"{fileName}.{fileExtension}";
-                        }
+                        // if (string.IsNullOrEmpty(fileName))
+                        // {
+                        //     // 如果没有从响应头获取到文件名，使用配置的文件后缀生成
+                        //     fileName = $"exported_file_{DateTime.Now:yyyyMMdd_HHmmss}.{fileExtension}";
+                        // }
+                        // else if (!fileName.EndsWith($".{fileExtension}"))
+                        // {
+                        //     // 如果文件名没有正确的后缀，添加后缀
+                        //     fileName = $"{fileName}.{fileExtension}";
+                        // }
                         
                         var downloadData = new DownloadFileData
                         {
-                            file_name = fileName,
+                            // file_name = fileName,
                             file_size = fileSize.ToString(),
-                            file_type = GetFileTypeFromHeaders(response.Headers),
+                            // file_type = GetFileTypeFromHeaders(response.Headers),
                             file_content = fileBytes // 添加文件内容字段
                         };
 
@@ -419,8 +443,10 @@ namespace U0UGames.FeiShu.Editor
                     }
                     else
                     {
-                        Debug.LogError($"下载导出文件失败: {response.StatusCode}, 响应内容: {responseContent}");
-                        return new DownloadExportResponse { code = (int)response.StatusCode, msg = responseContent };
+                        // 请求失败时，读取错误信息（此时可以安全地读取字符串）
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        Debug.LogError($"下载导出文件失败: {response.StatusCode}, 响应内容: {errorContent}");
+                        return new DownloadExportResponse { code = (int)response.StatusCode, msg = errorContent };
                     }
                 }
             }

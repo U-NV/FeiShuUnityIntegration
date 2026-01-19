@@ -69,10 +69,10 @@ namespace U0UGames.FeiShu.Editor
     [System.Serializable]
     public class DownloadFileData
     {
-        public string file_name;
-        public string file_token;
+        // public string file_name;
+        // public string file_token;
         public string file_size;
-        public string file_type;
+        // public string file_type;
         public byte[] file_content; // 添加文件内容字段，用于直接下载
     }
 

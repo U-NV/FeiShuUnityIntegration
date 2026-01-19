@@ -5,34 +5,7 @@ using UnityEngine;
 
 namespace U0UGames.FeiShu.Editor
 {
-    public class FeiShuUserToken:ScriptableObject
-    {
-        public static string FeiShuUserTokenAssetPath = "Assets/Settings/FeiShuUserToken.asset";
 
-        public string feiShuUserAccessToken = "";
-        public string feiShuRefreshToken = "";
-        public string feiShuTokenExpiryTime = "";
-        public string feiShuRefreshTokenExpiryTime = "";
-        public static FeiShuUserToken GetOrCreateConfig()
-        {
-            var assetDirectoryPath = Path.GetDirectoryName(FeiShuUserTokenAssetPath);
-            var realDirectoryPath = UnityPathUtility.AssetPathToFullPath(assetDirectoryPath);
-            if (!Directory.Exists(realDirectoryPath))
-            {
-                Directory.CreateDirectory(realDirectoryPath);
-            }
-
-            var config = AssetDatabase.LoadAssetAtPath<FeiShuUserToken>(FeiShuUserTokenAssetPath);
-            if (config == null)
-            {
-                config = ScriptableObject.CreateInstance<FeiShuUserToken>();
-                AssetDatabase.CreateAsset(config, FeiShuUserTokenAssetPath);
-                return config;
-            }
-      
-            return config;
-        }
-    }
 
 
     [System.Serializable]
@@ -156,6 +129,7 @@ namespace U0UGames.FeiShu.Editor
         }
         [Tooltip("是否是知识库节点")]
         public bool isWikiNode = true;
+        public string fileName;
         public ExtensionType file_extension = ExtensionType.xlsx;
         public ExportType type = ExportType.sheet;
         public string fileToken;
